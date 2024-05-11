@@ -20,7 +20,7 @@ end
 -- Calculate the movement vector
 local movementVector = Vector3.new(0, 0, -0.09)
 
--- Set the character to move forward for 1 second
+-- Set the character to move forward for 0.1 second
 local duration = 0.1
 local startTime = os.clock()
 
