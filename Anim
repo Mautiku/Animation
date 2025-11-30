@@ -1,4 +1,4 @@
--- 🏆 FINAL ANIMATION SCRIPT: Master Bundle Selector with All Bundles 🏆
+-- 🏆 FINAL ANIMATION SCRIPT: Master Bundle Selector with Hybrid Customization 🏆
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
@@ -6,17 +6,34 @@ local LocalPlayer = Players.LocalPlayer
 -- 🌐 GLOBAL CONFIGURATION (getgenv) 🌐
 -- =============================================
 
--- ตั้งค่าตัวแปรส่วนกลางสำหรับการเลือกชุดอนิเมชั่น
--- ตัวเลือกที่ใช้ได้: Ninja, Robot, Default, custom, Levitate, Mage, Stylish, Hero, Toy, Astronaut, Bubbly, Cartoony, Elder, Ghost, Knight, Vampire, Werewolf, Zombie, Bold, Adidas, Catwalk, Walmart, Wicked, NFL, Pirate, Adidas2, Oldschool
--- 💡 หากต้องการตั้งค่าเริ่มต้น ให้กำหนดค่าก่อนรัน loadstring เช่น:
--- getgenv().ChosenBundleName = "Robot"
+-- **1. โหมด Hybrid Custom**
+if getgenv().EnableHybridCustom == nil then
+    getgenv().EnableHybridCustom = false -- <<-- **ตั้งเป็น true เพื่อเปิดโหมดผสม**
+end
 
-if not getgenv().ChosenBundleName then
-    getgenv().ChosenBundleName = "Ninja" -- <<-- **ชื่อชุดเริ่มต้นหากไม่มีการกำหนด**
+-- **2. การตั้งค่า Hybrid (ใช้ได้เฉพาะเมื่อ EnableHybridCustom เป็น true)**
+if getgenv().HybridSettings == nil then
+    getgenv().HybridSettings = {
+        idle1  = "Default", -- ท่ายืนนิ่ง 1
+        idle2  = "Default", -- ท่ายืนนิ่ง 2
+        walk   = "Ninja",   -- ท่าเดิน
+        run    = "Robot",   -- ท่าวิ่ง
+        jump   = "Levitate",-- ท่ากระโดด
+        fall   = "Hero",    -- ท่าตก
+        climb  = "Default", -- ท่าปีน
+        swim   = "Default", -- ท่าว่ายน้ำ
+        swimidle = "Default"-- ท่าลอยตัวในน้ำ
+    }
+end
+
+-- **3. โหมดเลือกชุดเดียว (ใช้ได้เฉพาะเมื่อ EnableHybridCustom เป็น false)**
+if getgenv().ChosenBundleName == nil then
+    getgenv().ChosenBundleName = "Ninja" -- <<-- **ชื่อชุดเริ่มต้น (ถ้าไม่ใช้ Hybrid)**
 end
 
 -- =============================================
 -- 📚 MASTER ANIMATION DATA 📚
+-- (ข้อมูลชุดอนิเมชั่นทั้งหมดเหมือนเดิม)
 -- =============================================
 local MasterBundles = {
     Ninja = {
@@ -158,7 +175,7 @@ local MasterBundles = {
 
 -- ตั้งค่าเริ่มต้น
 local IsActive = true 
-local CurrentBundleName = getgenv().ChosenBundleName -- ดึงค่าจาก getgenv()
+local CurrentBundleName = getgenv().ChosenBundleName -- ใช้สำหรับโหมดปกติเท่านั้น
 
 -- ===============================================
 -- 🛠 CORE FUNCTIONS 🛠
@@ -170,6 +187,34 @@ local function StopAllAnimations(Humanoid)
         track:Stop()
         track:Destroy()
     end
+end
+
+local function GetAnimID(AnimKey)
+    local bundleName
+    
+    -- 1. ตรวจสอบโหมด Hybrid Custom
+    if getgenv().EnableHybridCustom then
+        bundleName = getgenv().HybridSettings[AnimKey]
+        if not bundleName or not MasterBundles[bundleName] then
+            warn("Hybrid Error: Bundle '"..tostring(bundleName).."' not found for '"..AnimKey.."'. Falling back to Default.")
+            bundleName = "Default"
+        end
+    -- 2. ใช้โหมด Bundle เดียว
+    else
+        bundleName = getgenv().ChosenBundleName
+        if not bundleName or not MasterBundles[bundleName] then
+            warn("Bundle Error: Bundle '"..tostring(bundleName).."' not found. Falling back to Default.")
+            bundleName = "Default"
+        end
+    end
+    
+    -- ดึง Animation ID จากชื่อชุดที่เลือก
+    local id = MasterBundles[bundleName][AnimKey]
+    if not id then
+        -- ในกรณีที่ชุดนั้นๆ ไม่มีท่านั้นจริงๆ (ไม่ควรเกิดขึ้นถ้า MasterBundles ถูกต้อง)
+        return MasterBundles["Default"][AnimKey]
+    end
+    return id
 end
 
 local function UpdateAnims(Character)
@@ -184,17 +229,9 @@ local function UpdateAnims(Character)
         warn("Humanoid or Animate script not found.")
         return 
     end
-
-    -- **อัปเดต CurrentBundleName จาก getgenv().ChosenBundleName เสมอ**
-    CurrentBundleName = getgenv().ChosenBundleName
     
-    local AnimIDs = MasterBundles[CurrentBundleName]
-    if not AnimIDs then
-        warn("Error: Bundle '"..CurrentBundleName.."' not found. Using Default.")
-        CurrentBundleName = "Default"
-        getgenv().ChosenBundleName = "Default" -- อัปเดตกลับไปที่ getgenv() ด้วย
-        AnimIDs = MasterBundles["Default"]
-    end
+    -- อัปเดตชื่อชุดปัจจุบันสำหรับโหมดปกติ
+    CurrentBundleName = getgenv().ChosenBundleName
     
     StopAllAnimations(Humanoid)
     
@@ -209,17 +246,19 @@ local function UpdateAnims(Character)
         end
     end
 
-    changeID("walk", AnimIDs.walk)
-    changeID("run", AnimIDs.run)
-    changeID("jump", AnimIDs.jump)
-    changeID("fall", AnimIDs.fall)
-    changeID("climb", AnimIDs.climb)
-    changeID("swim", AnimIDs.swim)
-    changeID("swimidle", AnimIDs.swimidle)
+    -- เปลี่ยนท่าทางหลักโดยใช้ GetAnimID เพื่อจัดการ Hybrid/Single
+    changeID("walk", GetAnimID("walk"))
+    changeID("run", GetAnimID("run"))
+    changeID("jump", GetAnimID("jump"))
+    changeID("fall", GetAnimID("fall"))
+    changeID("climb", GetAnimID("climb"))
+    changeID("swim", GetAnimID("swim"))
+    changeID("swimidle", GetAnimID("swimidle"))
 
+    -- จัดการท่า Idle
     local idleValue = AnimateScript:FindFirstChild("idle")
     if idleValue then
-        local idleMapping = {AnimIDs.idle1, AnimIDs.idle2}
+        local idleMapping = {GetAnimID("idle1"), GetAnimID("idle2")}
         for i, animId in ipairs(idleMapping) do
             local animObject = idleValue:FindFirstChild("Animation"..i) 
             if animObject and animObject:IsA("Animation") then
@@ -232,17 +271,40 @@ local function UpdateAnims(Character)
     task.wait() 
     AnimateScript.Disabled = false
     
-    print("✅ Animations set to: "..CurrentBundleName)
+    if getgenv().EnableHybridCustom then
+        print("✅ Animations set to: HYBRID CUSTOM MODE")
+    else
+        print("✅ Animations set to: "..CurrentBundleName.." (SINGLE MODE)")
+    end
 end
 
 -- ===============================================
 -- 💻 EXECUTION AND CHAT LISTENER 💻
 -- ===============================================
 
--- สร้างฟังก์ชันที่สามารถเรียกได้จากภายนอกผ่าน getgenv() เพื่ออัปเดตแบบทันที
+-- ฟังก์ชันสำหรับสลับโหมด Hybrid
+getgenv().ToggleHybridMode = function(enabled)
+    local state = enabled == true
+    if getgenv().EnableHybridCustom ~= state then
+        getgenv().EnableHybridCustom = state
+        print("🔄 Hybrid Custom Mode is now: "..(state and "**ENABLED**" or "**DISABLED**"))
+        if LocalPlayer.Character then
+            UpdateAnims(LocalPlayer.Character)
+        end
+    else
+        print("❗ Hybrid Custom Mode is already: "..(state and "ENABLED" or "DISABLED"))
+    end
+end
+
+-- ฟังก์ชันสำหรับสลับโหมด Single Bundle
 getgenv().SwitchAnimationBundle = function(bundleName)
     local lowerName = bundleName:lower()
     if MasterBundles[lowerName] then
+        -- สลับไปโหมด Single โดยอัตโนมัติ
+        if getgenv().EnableHybridCustom then
+            getgenv().ToggleHybridMode(false)
+        end
+        
         if lowerName ~= getgenv().ChosenBundleName or not IsActive then
             print("🔄 Switching bundle to: "..lowerName.." (via getgenv().SwitchAnimationBundle)")
             getgenv().ChosenBundleName = lowerName
@@ -262,6 +324,7 @@ getgenv().SwitchAnimationBundle = function(bundleName)
     end
 end
 
+
 if LocalPlayer.Character then
     UpdateAnims(LocalPlayer.Character)
 end
@@ -273,6 +336,7 @@ LocalPlayer.Chatted:Connect(function(message)
     local parts = string.split(lowerMsg, " ")
 
     if parts[1] == "/e" and parts[2] == "stop" then
+        -- (โค้ด /e stop เหมือนเดิม)
         if IsActive then
             IsActive = false
             if LocalPlayer.Character and LocalPlayer.Character.Humanoid then
@@ -311,33 +375,26 @@ LocalPlayer.Chatted:Connect(function(message)
             print("🛑 Custom Animations Deactivated. All animations are set to static (zero) until the character respawns.")
         end
     elseif parts[1] == "/e" and parts[2] == "start" then
+        -- (โค้ด /e start เหมือนเดิม)
         if not IsActive then
             IsActive = true
-            -- ดึงชื่อชุดล่าสุดจาก getgenv
-            CurrentBundleName = getgenv().ChosenBundleName
-            print("🟢 Custom Animations Activated. Loading bundle: "..CurrentBundleName)
-            if LocalPlayer.Character then
-                UpdateAnims(LocalPlayer.Character)
+            if getgenv().EnableHybridCustom then
+                print("🟢 Custom Animations Activated. Loading: HYBRID CUSTOM MODE")
+            else
+                CurrentBundleName = getgenv().ChosenBundleName
+                print("🟢 Custom Animations Activated. Loading bundle: "..CurrentBundleName)
             end
-        end
-    elseif parts[1] == "/e" and MasterBundles[parts[2]] then
-        -- 🔄 คำสั่ง /e [BundleName]: เปลี่ยนชุดและเปิดใช้งาน
-        local newBundle = parts[2]
-        
-        -- อัปเดต getgenv() ก่อนเรียก UpdateAnims
-        getgenv().ChosenBundleName = newBundle 
-        
-        if newBundle ~= CurrentBundleName or not IsActive then
-            print("🔄 Switching bundle to: "..newBundle.."...")
-            CurrentBundleName = newBundle
-            IsActive = true
             
             if LocalPlayer.Character then
                 UpdateAnims(LocalPlayer.Character)
             end
-        else
-            print("❗ Already using bundle: "..CurrentBundleName)
         end
+    elseif parts[1] == "/e" and parts[2] == "custom" then
+        -- 🆕 คำสั่ง /e custom: สลับไปใช้โหมด Hybrid Custom
+        getgenv().ToggleHybridMode(true)
+    elseif parts[1] == "/e" and MasterBundles[parts[2]] then
+        -- 🔄 คำสั่ง /e [BundleName]: เปลี่ยนชุดและเปิดใช้งาน (โหมด Single)
+        getgenv().SwitchAnimationBundle(parts[2])
     elseif parts[1] == "/e" and parts[2] and not MasterBundles[parts[2]] then
         local availableBundles = ""
         for name, _ in pairs(MasterBundles) do
@@ -347,4 +404,5 @@ LocalPlayer.Chatted:Connect(function(message)
     end
 end)
 
-print("Script Loaded! Current Bundle: "..CurrentBundleName..". Use /e [BundleName] to switch! Use /e stop to disable. You can also use getgenv().ChosenBundleName = 'NewBundle' or getgenv().SwitchAnimationBundle('NewBundle') in console.")
+local displayMode = getgenv().EnableHybridCustom and "HYBRID CUSTOM" or getgenv().ChosenBundleName .. " (SINGLE)"
+print("Script Loaded! Current Mode: "..displayMode..". Use /e [BundleName] to switch or /e custom to enter Hybrid Mode.")
